@@ -1,11 +1,9 @@
 package com.ikvant.remotetask.entities;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.userdetails.User;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.OneToMany;
+import javax.persistence.*;
 import java.util.Date;
 import java.util.List;
 
@@ -15,17 +13,20 @@ public class Meeting {
     @GeneratedValue
     private long id;
 
-    private String title;
-    private String description;
+    private String title = "";
+    private String description = "";
 
-    @DateTimeFormat
-    private Date start;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private Date start = new Date();
 
-    @DateTimeFormat
-    private Date end;
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+    private Date end = new Date();
 
-    @OneToMany(mappedBy = "meeting")
-    private List<Member> members;
+    private int priority = 1;
+
+    @ManyToMany
+    @JoinTable
+    private List<AppUser> members;
 
     public long getId() {
         return id;
@@ -67,11 +68,19 @@ public class Meeting {
         this.end = end;
     }
 
-    public List<Member> getMembers() {
+    public List<AppUser> getMembers() {
         return members;
     }
 
-    public void setMembers(List<Member> members) {
+    public void setMembers(List<AppUser> members) {
         this.members = members;
+    }
+
+    public int getPriority() {
+        return priority;
+    }
+
+    public void setPriority(int priority) {
+        this.priority = priority;
     }
 }

@@ -2,9 +2,7 @@ package com.ikvant.remotetask.controllers;
 
 import com.ikvant.remotetask.entities.AppUser;
 import com.ikvant.remotetask.entities.Meeting;
-import com.ikvant.remotetask.entities.Member;
 import com.ikvant.remotetask.reposirtories.MeetingRepo;
-import com.ikvant.remotetask.reposirtories.MemberRepo;
 import com.ikvant.remotetask.reposirtories.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -13,6 +11,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 @RestController
@@ -20,9 +20,6 @@ public class MeetingController {
 
     @Autowired
     private MeetingRepo meetingRepo;
-
-    @Autowired
-    private MemberRepo memberRepo;
 
     @Autowired
     private UserRepo userRepo;
@@ -36,17 +33,29 @@ public class MeetingController {
         Meeting meeting = meetingRepo.findOne(id);
 
         if (user != null && meeting != null) {
-            Member member = new Member(meeting, user);
-            memberRepo.save(member);
-            return ResponseEntity.ok(meetingRepo.findOne(id));
+            if (!meeting.getMembers().contains(user)) {
+                meeting.getMembers().add(user);
+            }
+            return ResponseEntity.ok(meetingRepo.save(meeting));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
     @GetMapping("/meetings")
-    public ResponseEntity<List<Meeting>> getAll() {
-        return ResponseEntity.ok(meetingRepo.findAll());
+    public ResponseEntity<List<Meeting>> getAll(@RequestParam(name = "text", required = false) String text) {
+        if (text != null && !"".equals(text)) {
+            return ResponseEntity.ok(meetingRepo.findMeetingsByDescriptionOrTitleContaining(text, text));
+        }
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date());
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        Date start = calendar.getTime();
+
+        calendar.add(Calendar.DAY_OF_YEAR, 1);
+        Date end = calendar.getTime();
+        return ResponseEntity.ok(meetingRepo.findMeetingsByStartBetween(start, end));
     }
 
     @GetMapping("/meetings/{id}")
@@ -63,19 +72,17 @@ public class MeetingController {
     public ResponseEntity<Meeting> deleteById(@PathVariable("id") Long id) {
         Meeting meeting = meetingRepo.findOne(id);
         if (meeting != null) {
-            memberRepo.delete(id);
-            return ResponseEntity.ok(meeting);
+            meetingRepo.delete(id);
+            return ResponseEntity.status(HttpStatus.OK).build();
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
     @PostMapping("/meetings/{id}")
-    public ResponseEntity<Meeting> getById(@PathVariable("id") Long id, @RequestParam("title") String tile, @RequestParam("description") String description) {
-        Meeting meeting = meetingRepo.findOne(id);
-        if (meeting != null) {
-            meeting.setDescription(description);
-            meeting.setTitle(tile);
+    public ResponseEntity<Meeting> getById(@PathVariable("id") Long id, @RequestBody Meeting meeting) {
+        Meeting storeMeeting = meetingRepo.findOne(id);
+        if (storeMeeting != null) {
             return ResponseEntity.ok(meetingRepo.save(meeting));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -83,10 +90,8 @@ public class MeetingController {
     }
 
     @PostMapping("/meetings")
-    public ResponseEntity<Meeting> getById(@RequestParam("title") String tile, @RequestParam("description") String description) {
-        Meeting meeting = new Meeting();
-        meeting.setDescription(description);
-        meeting.setTitle(tile);
+    public ResponseEntity<Meeting> getById(@RequestBody Meeting meeting) {
+        meeting.setId(0);
         return ResponseEntity.status(HttpStatus.CREATED).body(meetingRepo.save(meeting));
     }
 }
